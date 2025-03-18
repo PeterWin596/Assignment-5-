@@ -29,29 +29,50 @@ class Rectangle:
         return f"Rectangle({self.width}x{self.height} at ({self.x}, {self.y}))"
 
 # Pack function using rectpack
+from rectpack import newPacker
+
 def pack(allRect, canvasSize):
-    """Packs rectangles without overlap using rectpack."""
-    packer = newPacker()
+    """Packs rectangles without overlapping and ensures all fit within bounds."""
+    packer = newPacker(rotation=False)  # Disable rotation to match expected behavior
 
-    # Add rectangles to packer
-    for rect in allRect:
-        packer.add_rect(rect.width, rect.height)
+    # Dictionary to track original Rectangle objects
+    rect_map = {}
 
-    # Add one bin (canvas) with max width/height
-    packer.add_bin(canvasSize[1], canvasSize[0])
+    # Add rectangles to packer and store their ID
+    for i, rect in enumerate(allRect):
+        packer.add_rect(rect.width, rect.height, rid=i)  # Assign ID
+        rect_map[i] = rect  # Store original Rectangle object with ID
+
+    # Add a slightly larger bin to improve packing efficiency
+    bin_width = canvasSize[1] + 10  # Small buffer
+    bin_height = canvasSize[0] + 10  # Small buffer
+    packer.add_bin(bin_width, bin_height)  
 
     # Run the packing algorithm
     packer.pack()
 
     packed_rectangles = []
-    
+
     # Extract packed positions
-    for bin in packer:
-        for rect in bin:
-            x, y, w, h = rect
-            packed_rectangles.append(Rectangle(h, w, x, y))  # Keep width and height order
+    for abin in packer:
+        for rect in abin:
+            x, y, w, h = rect.x, rect.y, rect.width, rect.height  # Ensure correct values
+            rect_id = rect.rid  # Get the rectangle ID
+            original_rect = rect_map[rect_id]  # Retrieve original Rectangle object
+
+            # Clamp positions to stay within canvas bounds
+            x = min(max(0, x), canvasSize[1] - w)
+            y = min(max(0, y), canvasSize[0] - h)
+
+            # Ensure we return a Rectangle object
+            packed_rectangles.append(Rectangle(original_rect.height, original_rect.width, int(x), int(y)))
+
+    # Verify all rectangles were packed
+    if len(packed_rectangles) != len(allRect):
+        print(f"Warning: Expected {len(allRect)} rectangles but only packed {len(packed_rectangles)}.")
 
     return packed_rectangles
+
 
 # Main Function
 def main():
